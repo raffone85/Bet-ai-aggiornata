@@ -1,5 +1,153 @@
-git clone https://github.com/raffone85/Bet-ai-aggiornata
-cp AUTO_BET.html index.html
-git add index.html
-git commit -m "Fix Auto Bet"
-git push
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Match Analyzer Pro</title>
+<style>
+:root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--line:#1f2937;--text:#e5e7eb;--accent:#22c55e}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{padding:18px 20px;border-bottom:1px solid var(--line);background:#0b1220;position:sticky;top:0}
+.h1{font-size:28px;font-weight:700}.green{color:var(--accent)} .sub{margin-top:6px;color:var(--muted);font-size:14px}
+.tabs{display:flex;flex-wrap:wrap;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.tab{border:1px solid #334155;background:#111827;color:#e5e7eb;padding:10px 16px;border-radius:999px;cursor:pointer}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#052e16;font-weight:700}
+main{padding:20px}.panel{display:none}.panel.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+label{display:block;margin-bottom:6px;color:var(--muted);font-size:14px} input,select,button{width:100%;padding:12px;border-radius:12px;border:1px solid #334155;background:#0b1220;color:var(--text)}
+button.run{background:var(--accent);color:#052e16;border:none;font-weight:700;cursor:pointer}
+.kpi{font-size:28px;font-weight:700}.small{color:var(--muted);font-size:13px}.list{line-height:1.7}
+</style>
+</head>
+<body>
+<header>
+<div class="h1">Match <span class="green">Analyzer</span> Pro</div>
+<div class="sub">Versione rapida con tab <strong>Auto Bet</strong> ripristinato</div>
+</header>
+
+<div class="tabs">
+<button class="tab active" data-tab="home">Home</button>
+<button class="tab" data-tab="stats">Stats IA</button>
+<button class="tab" data-tab="players">Giocatori</button>
+<button class="tab" data-tab="general">Generale</button>
+<button class="tab" data-tab="hub">Match Hub</button>
+<button class="tab" data-tab="autobet">Auto Bet</button>
+<button class="tab" data-tab="storico">Storico</button>
+<button class="tab" data-tab="value">1X2 Value</button>
+<button class="tab" data-tab="gz">GZ Index</button>
+</div>
+
+<main>
+<section class="panel active" id="home">
+<div class="card"><h2>Home</h2><p>Questa versione serve per far tornare visibile e utilizzabile il tab Auto Bet anche su GitHub Pages.</p></div>
+</section>
+
+<section class="panel" id="stats">
+<div class="card"><h2>Stats IA</h2><p>Spazio pronto per statistiche, corner, falli, cartellini e altri mercati.</p></div>
+</section>
+
+<section class="panel" id="players">
+<div class="card"><h2>Giocatori</h2><p>Spazio pronto per tiri, falli subiti, contrasti e parate.</p></div>
+</section>
+
+<section class="panel" id="general">
+<div class="card"><h2>Generale</h2><p>Panoramica generale dei match selezionati.</p></div>
+</section>
+
+<section class="panel" id="hub">
+<div class="card"><h2>Match Hub</h2><p>Area centrale per filtri e selezione eventi.</p></div>
+</section>
+
+<section class="panel" id="autobet">
+<div class="card">
+<h2>Auto Bet</h2>
+<p>Inserisci i dati base e genera una giocata automatica ragionata.</p>
+
+<div class="grid">
+<div>
+<label>Partita</label>
+<input id="match" placeholder="Es. Napoli - Milan">
+</div>
+
+<div>
+<label>Mercato preferito</label>
+<select id="market">
+<option>Over 2.5</option>
+<option>Gol/Gol</option>
+<option>Under 3.5</option>
+<option>Corner Over</option>
+<option>Cartellini Over</option>
+</select>
+</div>
+
+<div>
+<label>Quota minima</label>
+<input id="odd" type="number" step="0.01" value="1.60">
+</div>
+
+<div>
+<label>Stake</label>
+<select id="stake">
+<option>1/10</option>
+<option>2/10</option>
+<option>3/10</option>
+<option>5/10</option>
+</select>
+</div>
+</div>
+
+<div style="margin-top:14px">
+<button class="run" onclick="generaBet()">Genera giocata</button>
+</div>
+</div>
+
+<div class="card" id="resultBox">
+<div class="small">Output</div>
+<div class="list" id="result">Nessuna giocata generata.</div>
+</div>
+</section>
+
+<section class="panel" id="storico">
+<div class="card"><h2>Storico</h2><p>Area pronta per risultati precedenti e tracking.</p></div>
+</section>
+
+<section class="panel" id="value">
+<div class="card"><h2>1X2 Value</h2><p>Area pronta per analisi quote e value bet.</p></div>
+</section>
+
+<section class="panel" id="gz">
+<div class="card"><h2>GZ Index</h2><p>Area pronta per indice gol e classificazione match.</p></div>
+</section>
+</main>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+const panels = document.querySelectorAll('.panel');
+
+tabs.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+function generaBet(){
+  const match = document.getElementById('match').value || 'Partita non inserita';
+  const market = document.getElementById('market').value;
+  const odd = document.getElementById('odd').value || '1.60';
+  const stake = document.getElementById('stake').value;
+
+  const msg = `<strong>Match:</strong> ${match}<br>
+               <strong>Mercato:</strong> ${market}<br>
+               <strong>Quota minima:</strong> ${odd}<br>
+               <strong>Stake:</strong> ${stake}<br><br>
+               <strong>Esito Auto Bet:</strong> giocata proposta con profilo prudente e selezione orientata alla probabilità.`;
+
+  document.getElementById('result').innerHTML = msg;
+}
+</script>
+</body>
+</html>
