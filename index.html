@@ -1,153 +1,109 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Match Analyzer Pro</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0d12">
+<title>Match Analyzer Pro Fixed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
-:root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--line:#1f2937;--text:#e5e7eb;--accent:#22c55e}
-*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
-header{padding:18px 20px;border-bottom:1px solid var(--line);background:#0b1220;position:sticky;top:0}
-.h1{font-size:28px;font-weight:700}.green{color:var(--accent)} .sub{margin-top:6px;color:var(--muted);font-size:14px}
-.tabs{display:flex;flex-wrap:wrap;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
-.tab{border:1px solid #334155;background:#111827;color:#e5e7eb;padding:10px 16px;border-radius:999px;cursor:pointer}
-.tab.active{background:var(--accent);border-color:var(--accent);color:#052e16;font-weight:700}
-main{padding:20px}.panel{display:none}.panel.active{display:block}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-label{display:block;margin-bottom:6px;color:var(--muted);font-size:14px} input,select,button{width:100%;padding:12px;border-radius:12px;border:1px solid #334155;background:#0b1220;color:var(--text)}
-button.run{background:var(--accent);color:#052e16;border:none;font-weight:700;cursor:pointer}
-.kpi{font-size:28px;font-weight:700}.small{color:var(--muted);font-size:13px}.list{line-height:1.7}
-</style>
-</head>
-<body>
-<header>
-<div class="h1">Match <span class="green">Analyzer</span> Pro</div>
-<div class="sub">Versione rapida con tab <strong>Auto Bet</strong> ripristinato</div>
-</header>
-
-<div class="tabs">
-<button class="tab active" data-tab="home">Home</button>
-<button class="tab" data-tab="stats">Stats IA</button>
-<button class="tab" data-tab="players">Giocatori</button>
-<button class="tab" data-tab="general">Generale</button>
-<button class="tab" data-tab="hub">Match Hub</button>
-<button class="tab" data-tab="autobet">Auto Bet</button>
-<button class="tab" data-tab="storico">Storico</button>
-<button class="tab" data-tab="value">1X2 Value</button>
-<button class="tab" data-tab="gz">GZ Index</button>
-</div>
-
-<main>
-<section class="panel active" id="home">
-<div class="card"><h2>Home</h2><p>Questa versione serve per far tornare visibile e utilizzabile il tab Auto Bet anche su GitHub Pages.</p></div>
-</section>
-
-<section class="panel" id="stats">
-<div class="card"><h2>Stats IA</h2><p>Spazio pronto per statistiche, corner, falli, cartellini e altri mercati.</p></div>
-</section>
-
-<section class="panel" id="players">
-<div class="card"><h2>Giocatori</h2><p>Spazio pronto per tiri, falli subiti, contrasti e parate.</p></div>
-</section>
-
-<section class="panel" id="general">
-<div class="card"><h2>Generale</h2><p>Panoramica generale dei match selezionati.</p></div>
-</section>
-
-<section class="panel" id="hub">
-<div class="card"><h2>Match Hub</h2><p>Area centrale per filtri e selezione eventi.</p></div>
-</section>
-
-<section class="panel" id="autobet">
-<div class="card">
-<h2>Auto Bet</h2>
-<p>Inserisci i dati base e genera una giocata automatica ragionata.</p>
-
-<div class="grid">
-<div>
-<label>Partita</label>
-<input id="match" placeholder="Es. Napoli - Milan">
-</div>
-
-<div>
-<label>Mercato preferito</label>
-<select id="market">
-<option>Over 2.5</option>
-<option>Gol/Gol</option>
-<option>Under 3.5</option>
-<option>Corner Over</option>
-<option>Cartellini Over</option>
-</select>
-</div>
-
-<div>
-<label>Quota minima</label>
-<input id="odd" type="number" step="0.01" value="1.60">
-</div>
-
-<div>
-<label>Stake</label>
-<select id="stake">
-<option>1/10</option>
-<option>2/10</option>
-<option>3/10</option>
-<option>5/10</option>
-</select>
-</div>
-</div>
-
-<div style="margin-top:14px">
-<button class="run" onclick="generaBet()">Genera giocata</button>
-</div>
-</div>
-
-<div class="card" id="resultBox">
-<div class="small">Output</div>
-<div class="list" id="result">Nessuna giocata generata.</div>
-</div>
-</section>
-
-<section class="panel" id="storico">
-<div class="card"><h2>Storico</h2><p>Area pronta per risultati precedenti e tracking.</p></div>
-</section>
-
-<section class="panel" id="value">
-<div class="card"><h2>1X2 Value</h2><p>Area pronta per analisi quote e value bet.</p></div>
-</section>
-
-<section class="panel" id="gz">
-<div class="card"><h2>GZ Index</h2><p>Area pronta per indice gol e classificazione match.</p></div>
-</section>
-</main>
-
-<script>
-const tabs = document.querySelectorAll('.tab');
-const panels = document.querySelectorAll('.panel');
-
-tabs.forEach(btn => {
-  btn.addEventListener('click', () => {
-    tabs.forEach(t => t.classList.remove('active'));
-    panels.forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.tab).classList.add('active');
-  });
-});
-
-function generaBet(){
-  const match = document.getElementById('match').value || 'Partita non inserita';
-  const market = document.getElementById('market').value;
-  const odd = document.getElementById('odd').value || '1.60';
-  const stake = document.getElementById('stake').value;
-
-  const msg = `<strong>Match:</strong> ${match}<br>
-               <strong>Mercato:</strong> ${market}<br>
-               <strong>Quota minima:</strong> ${odd}<br>
-               <strong>Stake:</strong> ${stake}<br><br>
-               <strong>Esito Auto Bet:</strong> giocata proposta con profilo prudente e selezione orientata alla probabilità.`;
-
-  document.getElementById('result').innerHTML = msg;
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0b0d12;--s1:#141720;--s2:#1a1e2a;--s3:#252a38;
+--brd:#2d3345;--brd2:#3a4055;
+--t1:#e8ecf4;--t2:#a0a8be;--t3:#6b7490;
+--grn:#4ade80;--grn2:#22c55e;--grn-bg:rgba(74,222,128,.1);
+--amb:#fbbf24;--amb-bg:rgba(251,191,36,.1);
+--red:#f87171;--red-bg:rgba(248,113,113,.08);
+--blu:#60a5fa;--blu-bg:rgba(96,165,250,.1);
+--cyn:#22d3ee;--cyn-bg:rgba(34,211,238,.08);
+--mag:#c084fc;--mag-bg:rgba(192,132,252,.08);
+--org:#fb923c;--org-bg:rgba(251,146,60,.08);
+--M:'IBM Plex Mono',monospace;--S:'DM Sans',sans-serif;
 }
-</script>
-</body>
-</html>
+html{font-size:15px;background:var(--bg)}
+body{background:var(--bg);color:var(--t1);font-family:var(--S);min-height:100vh;min-height:100dvh;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+button,input,select{font:inherit}
+button{border:none;background:none;cursor:pointer}
+.app{max-width:760px;margin:0 auto;padding:16px 14px 110px;background:var(--bg);min-height:100vh;min-height:100dvh}
+.hdr{padding:18px 0 10px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hdr h1{font-size:1.35rem;font-weight:700;color:#fff;letter-spacing:-.4px}
+.hdr h1 span{color:var(--grn)}
+.hdr-info{font:500 .8rem var(--S);color:var(--t3)}
+.mtabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.mtabs::-webkit-scrollbar{display:none}
+.mtab{padding:10px 16px;border-radius:24px;font:600 .85rem var(--S);color:var(--t2);border:1px solid var(--brd);background:var(--s1);white-space:nowrap;transition:all .2s;flex-shrink:0}
+.mtab:hover,.mtab:focus-visible{color:var(--t1);border-color:var(--brd2)}
+.mtab.active{background:var(--grn);color:var(--bg);border-color:var(--grn);font-weight:700}
+.panel{background:var(--s1);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-bottom:12px}
+.upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.upload-card{position:relative;padding:14px;border:1.5px dashed var(--brd2);border-radius:12px;background:rgba(255,255,255,.01);min-height:92px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.upload-card:hover{border-color:var(--grn2);background:rgba(74,222,128,.03)}
+.upload-card input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-lbl{font:700 .8rem var(--M);color:#fff}
+.upload-meta{font:500 .82rem var(--S);color:var(--t2);line-height:1.45}
+.upload-meta small{display:block;color:var(--t3)}
+.loaded{color:var(--grn);font-weight:700}
+.clear-btn{align-self:flex-start;padding:6px 10px;border-radius:8px;background:var(--red-bg);border:1px solid rgba(248,113,113,.25);color:var(--red);font:700 .75rem var(--M)}
+.stabs{display:flex;gap:4px;background:var(--s1);border-radius:10px;padding:4px;margin-bottom:12px;width:fit-content;flex-wrap:wrap}
+.stab{padding:8px 14px;border-radius:8px;font:600 .84rem var(--S);color:var(--t2)}
+.stab.active{background:var(--s3);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.search{flex:1;min-width:170px;padding:11px 14px;background:var(--s1);border:1.5px solid var(--brd);border-radius:10px;color:#fff;outline:none}
+.search:focus{border-color:var(--grn)}
+.search::placeholder{color:var(--t3)}
+.pdf-btn,.aux-btn{display:flex;align-items:center;gap:6px;padding:10px 14px;background:var(--s1);border:1.5px solid var(--brd);border-radius:10px;color:var(--t2);font:600 .84rem var(--S);transition:all .2s;min-height:44px}
+.pdf-btn:hover,.aux-btn:hover,.pdf-btn:focus-visible,.aux-btn:focus-visible{border-color:var(--grn);color:var(--grn)}
+.pdf-btn svg{width:16px;height:16px}
+.select{appearance:none;background:var(--s1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7490' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 10px center;padding:11px 34px 11px 12px;border:1.5px solid var(--brd);border-radius:10px;color:var(--t1);outline:none;min-height:44px}
+.select:focus{border-color:var(--grn)}
+.sec{display:flex;align-items:center;gap:10px;margin:18px 0 10px;padding-bottom:8px;border-bottom:1.5px solid var(--brd)}
+.tag{padding:5px 12px;border-radius:6px;font:700 .75rem var(--M);letter-spacing:.5px;text-transform:uppercase}
+.tag-m1{background:var(--grn-bg);color:var(--grn);border:1px solid rgba(74,222,128,.2)}
+.tag-a{background:var(--blu-bg);color:var(--blu);border:1px solid rgba(96,165,250,.2)}
+.tag-b{background:var(--amb-bg);color:var(--amb);border:1px solid rgba(251,191,36,.2)}
+.tag-gen{background:var(--cyn-bg);color:var(--cyn);border:1px solid rgba(34,211,238,.2)}
+.tag-mg{background:var(--mag-bg);color:var(--mag);border:1px solid rgba(192,132,252,.2)}
+.tag-ia{background:var(--org-bg);color:var(--org);border:1px solid rgba(251,146,60,.2)}
+.tag-gz{background:rgba(96,165,250,.1);color:var(--blu);border:1px solid rgba(96,165,250,.2)}
+.sec-ct{font:500 .8rem var(--S);color:var(--t3)}
+.mlist{display:flex;flex-direction:column;gap:6px}
+.mrow{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:10px;padding:12px 14px;background:var(--s1);border:1.5px solid transparent;border-radius:12px;cursor:pointer;transition:all .15s;min-height:64px}
+.mrow:hover,.mrow:focus-visible{border-color:var(--brd2);background:var(--s2)}
+.m-ora{font:600 .82rem var(--M);color:var(--t2)}
+.m-name{font:600 .95rem var(--S);color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-sub{font:.78rem var(--S);color:var(--t3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
+.m-right{display:flex;align-items:center;gap:8px;flex-shrink:0;justify-content:flex-end}
+.m-rpt{font:600 .8rem var(--M);color:var(--grn);min-width:34px;text-align:center}
+.m-rpt.no{color:var(--t3)}
+.m-ind{font:700 .82rem var(--M);padding:4px 10px;border-radius:6px}
+.ind-g{color:var(--grn);background:var(--grn-bg)}
+.ind-o{color:var(--amb);background:var(--amb-bg)}
+.ind-r{color:var(--t3);background:rgba(255,255,255,.04)}
+.badge{padding:3px 8px;border-radius:5px;font:700 .72rem var(--M);border:1px solid transparent;white-space:nowrap}
+.badge.good{background:var(--grn-bg);color:var(--grn);border-color:rgba(74,222,128,.2)}
+.badge.warn{background:var(--amb-bg);color:var(--amb);border-color:rgba(251,191,36,.2)}
+.badge.info{background:var(--blu-bg);color:var(--blu);border-color:rgba(96,165,250,.2)}
+.badge.alt{background:var(--mag-bg);color:var(--mag);border-color:rgba(192,132,252,.2)}
+.badge.neu{background:rgba(255,255,255,.05);color:var(--t2);border-color:rgba(255,255,255,.08)}
+.aff{display:flex;align-items:center;gap:3px}
+.aff-d{width:6px;height:6px;border-radius:50%}
+.aff-n{font:800 .82rem var(--M);margin-left:4px}
+.aff-5{color:var(--grn)}.aff-4{color:var(--grn2)}.aff-3{color:var(--amb)}.aff-2,.aff-1{color:var(--t3)}
+.empty{text-align:center;padding:50px 20px;color:var(--t3);background:var(--s1);border:1px solid var(--brd);border-radius:14px}
+.empty .ico{font-size:2rem;margin-bottom:10px;opacity:.4}
+.empty p{font:500 .95rem var(--S);line-height:1.6;margin:0 auto;max-width:42ch}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;display:flex;align-items:flex-end;justify-content:center;animation:fi .18s ease-out}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.det{background:var(--s1);border:1.5px solid var(--brd);border-radius:20px 20px 0 0;max-width:620px;width:100%;max-height:88vh;overflow-y:auto;padding:22px 16px 28px;animation:su .22s ease-out;-webkit-overflow-scrolling:touch}
+@keyframes su{from{transform:translateY(28px);opacity:0}to{transform:translateY(0);opacity:1}}
+@media(min-width:700px){.det{border-radius:20px;margin-bottom:24px;max-height:84vh}}
+.det-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:16px}
+.det-t{font:700 1.1rem var(--S);color:#fff;line-height:1.35}
+.d
