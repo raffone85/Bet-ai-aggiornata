@@ -309,8 +309,6 @@ function parseDataMining(t) {
   return R;
 }
   <script>
-// Continuazione dello script dalla Parte 1...
-
 function isValueSign(quotaReale, quotaDM, spread){return spread>0.15&&quotaReale>1.01&&quotaReale<3&&quotaDM>0;}
 function analyzeQuoteMatch(r){const value1=isValueSign(r.r1,r.dm1,r.spread1);const valueX=isValueSign(r.rx,r.dmx,r.spreadX);const value2=isValueSign(r.r2,r.dm2,r.spread2);let golSide=null;if(value1&&!value2)golSide='casa';else if(value2&&!value1)golSide='ospite';else if(value1&&value2)golSide='entrambe';else if(valueX)golSide='pareggio';const score=(value1?r.spread1:0)+(valueX?r.spreadX:0)+(value2?r.spread2:0);return {value1,valueX,value2,golSide,score};}
 function gzProbability(gz){if(gz===null)return {label:'N/D',desc:'Dato mancante',type:'nd'};if(gz<-1800)return {label:'U2.5 64%',desc:'Under 2.5 al 64%',type:'under'};if(gz<-1200)return {label:'U3.5 81%',desc:'Under 3.5 al 81%',type:'under'};if(gz>5000)return {label:'Ov2.5 64%',desc:'Over 2.5 al 64%',type:'over'};if(gz>1000)return {label:'Ov1.5 80%',desc:'Over 1.5 al 80%',type:'over'};if(gz>-200&&gz<200)return {label:'Ov0.5 95%',desc:'Over 0.5 al 95%',type:'over'};return {label:'Normale',desc:'Nessuna indicazione forte',type:'neutral'};}
@@ -497,10 +495,7 @@ function renderRow(r,i){
   }
   return '';
 }
-  <script>
-// Continuazione dello script dalla Parte 2...
-
-function detailKv(label,val,cls='n'){return `<div class="dc"><div class="dc-l">${escapeHtml(label)}</div><div class="dc-v ${cls}">${escapeHtml(val)}</div></div>`;}
+  function detailKv(label,val,cls='n'){return `<div class="dc"><div class="dc-l">${escapeHtml(label)}</div><div class="dc-v ${cls}">${escapeHtml(val)}</div></div>`;}
 function breakdownHtml(breakdown){if(!breakdown||!breakdown.length)return '<div class="note">Nessun breakdown disponibile.</div>';const total=breakdown.reduce((s,x)=>s+x.p,0);return `<div class="bk"><div class="bk-t">Breakdown punteggio</div>${breakdown.map(x=>`<div class="bk-r"><div class="n">${escapeHtml(x.n)}</div><div class="p ${x.p>0?'pos':'zero'}">+${fmt(x.p,2)}</div></div>`).join('')}<div class="bk-tot"><span>Totale</span><span class="p">${fmt(total,2)}</span></div></div>`;}
 function openDetail(idx){const rows=currentRows();const r=rows[idx];if(!r)return;ST.det=r;ST.detMarket=ST.market;renderDetail();}
 function closeDetail(){ST.det=null;ST.detMarket=null;document.getElementById('detM').innerHTML='';document.body.style.overflow='';}
