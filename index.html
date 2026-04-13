@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0d12">
-<title>Match Analyzer Pro Fixed</title>
+<title>Match Analyzer Pro + DataMining</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -184,11 +184,12 @@ button{border:none;background:none;cursor:pointer}
     <button class="mtab" data-m="storico">Storico</button>
     <button class="mtab" data-m="quote">1X2 Value</button>
     <button class="mtab" data-m="gz">GZ Index</button>
+    <button class="mtab" data-m="datamining">📊 DataMining</button>
   </div>
 
   <div class="panel">
     <div class="upload-grid" id="uploadGrid"></div>
-    <div class="footer-note">File supportati: CSV con separatore ; oppure , . I dataset GG/Ov2.5/Under 2.5 condividono lo stesso file.</div>
+    <div class="footer-note">File supportati: CSV con separatore ; oppure , . DataMining Plus include NP, %, quote e RE.</div>
   </div>
 
   <div id="controls"></div>
@@ -261,6 +262,7 @@ button{border:none;background:none;cursor:pointer}
     const iR = idx('R');
     const iRpt = idx('Rpt');
     const iNP = idx('NP');
+    // Gestione coppie 1,1,X,X,2,2
     const i1Perc = header.findIndex((h, i) => h === '1' && i > 5);
     const i1Quota = i1Perc + 1;
     const iXPerc = i1Quota + 1;
@@ -444,6 +446,7 @@ button{border:none;background:none;cursor:pointer}
       case 'gen': return getGeneralRows();
       case 'hub': return getHubRows();
       case 'storico': return getHistoryRows();
+      case 'datamining': return getDataMiningRows();
       default: return [];
     }
   }
@@ -458,13 +461,25 @@ button{border:none;background:none;cursor:pointer}
   function getQuoteRows(){let rows=ST.quoteValore.map(r=>{const a=analyzeQuoteMatch(r);return {...r,score:a.score,...a};});if(ST.quoteFilter!=='all')rows=rows.filter(r=>r.golSide===ST.quoteFilter);rows=filt(rows);return ST.sortMode==='time'?[...rows].sort(sortTime):[...rows].sort((a,b)=>b.score-a.score||sortTime(a,b));}
   function getGzRows(){let rows=ST.gz.map(r=>({...r,prob:gzProbability(r.gz),score:Math.abs(r.gz||0)}));if(ST.gzFilter!=='all')rows=rows.filter(r=>r.prob.type===ST.gzFilter);rows=filtLeague(rows,'lega');if(ST.gzSort==='time'||ST.sortMode==='time')return [...rows].sort(sortTime);return [...rows].sort((a,b)=>Math.abs(b.gz||0)-Math.abs(a.gz||0)||sortTime(a,b));}
   function getGeneralRows(){const rows=[];getOv05Rows().slice(0,5).forEach(r=>rows.push({ora:r.ora,evento:r.evento,market:'Ov 0.5PT',score:r.score,aff:r.aff,source:r,advice:r.aff>=4?'Linea prudente con buon supporto':'Segnale da confermare'}));getGgRows().slice(0,5).forEach(r=>rows.push({ora:r.ora,evento:r.evento,market:'GG',score:r.score,aff:r.aff,source:r,advice:r.gzAlign?.aligned&&r.qvAlign&&marketSupportsQuote('gg',r.qvAlign)?'GG sostenuto da GZ e 1X2':'GG interessante ma non pienamente convergente'}));getO25Rows().slice(0,5).forEach(r=>rows.push({ora:r.ora,evento:r.evento,market:'Ov 2.5',score:r.score,aff:r.aff,source:r,advice:r.gzAlign?.aligned?'Over supportato da GZ':'Over da verificare con le quote'}));getU25Rows().slice(0,5).forEach(r=>rows.push({ora:r.ora,evento:r.evento,market:'U 2.5',score:r.score,aff:r.aff,source:r,advice:r.gzAlign?.aligned?'Under coerente con GZ':'Under senza conferma piena'}));getMgRows().slice(0,5).forEach(r=>rows.push({ora:r.ora,evento:r.evento,market:'MG 1-3',score:Math.max(r.house.total,r.away.total),aff:Math.max(r.house.aff,r.away.aff),source:r,advice:'Mercato smart utile per match equilibrati'}));getIaRows().slice(0,5).forEach(r=>rows.push({ora:r.ora,evento:r.evento,market:'Stats IA',score:r.score,aff:r.aff,source:r,advice:'Supporto statistico accessorio'}));buildHubMatchMap().slice(0,5).forEach(r=>{if(r.advice.main)rows.push({ora:r.ora,evento:r.evento,market:'Pronostico finale',score:r.score,aff:r.aff,source:r,advice:r.advice.summary});});rows.sort((a,b)=>b.score-a.score||sortTime(a,b));return filt(rows);}
+  
+  // NUOVA VISTA DATAMINING
+  function getDataMiningRows(){
+    let rows = ST.dataMining.map(dm => ({
+      ...dm,
+      score: dm.np, // usiamo NP come score per ordinamento
+      aff: dm.np >= 50 ? 5 : dm.np >= 30 ? 4 : dm.np >= 15 ? 3 : dm.np >= 5 ? 2 : 1
+    }));
+    rows = filt(rows);
+    if (ST.sortMode === 'time') return rows.sort(sortTime);
+    return rows.sort((a,b) => b.np - a.np || sortTime(a,b));
+  }
 
   // ==================== STORICO ====================
   const STORAGE_KEY='ma_storico_v1';
   function safeLoadStorage(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}catch(e){return [];}}
   function safeSaveStorage(rows){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(rows));}catch(e){}}
   ST.history=safeLoadStorage();
-  function sourceLabel(m){return ({ov05:'Ov 0.5 PT',gg:'GG',o25:'Ov 2.5',u25:'U 2.5',mg13:'MG 1-3',ia:'Stats IA',players:'Giocatori',quote:'1X2 Value',gz:'GZ Index',gen:'Generale',hub:'Match Hub',storico:'Storico'})[m]||m;}
+  function sourceLabel(m){return ({ov05:'Ov 0.5 PT',gg:'GG',o25:'Ov 2.5',u25:'U 2.5',mg13:'MG 1-3',ia:'Stats IA',players:'Giocatori',quote:'1X2 Value',gz:'GZ Index',gen:'Generale',hub:'Match Hub',storico:'Storico',datamining:'DataMining'})[m]||m;}
   function histCategoryFromRow(m,r){
     if(m==='ov05') return 'Ov 0.5 PT';
     if(m==='gg') return 'GG';
@@ -481,6 +496,7 @@ button{border:none;background:none;cursor:pointer}
     if(m==='gz') return 'GZ Index';
     if(m==='gen') return r.market||'Generale';
     if(m==='hub') return r?.advice?.main?.market || 'Match Hub';
+    if(m==='datamining') return 'DataMining Plus';
     return sourceLabel(m);
   }
   function histMatchName(m,r){return r.evento||r.match||r.partita||r.nome||'Pronostico';}
@@ -561,6 +577,7 @@ button{border:none;background:none;cursor:pointer}
     else if(ST.market==='gen') base=getGeneralRows();
     else if(ST.market==='hub') base=getHubRows();
     else if(ST.market==='storico') base=getHistoryRows();
+    else if(ST.market==='datamining') base=ST.dataMining;
     const leagueKey=ST.market==='gg'||ST.market==='o25'||ST.market==='u25'?'lega':ST.market==='ia'?'lega':ST.market==='players'?'lega':ST.market==='gz'?'lega':null;
     const leagues=leagueKey?getLeagueOptions(base,leagueKey):[];
     let stabs='';
@@ -568,6 +585,11 @@ button{border:none;background:none;cursor:pointer}
       const sum=historySummary(ST.history||[]);
       const cats=['all',...sum.cats.map(x=>x.cat)];
       document.getElementById('controls').innerHTML=`<div class="stabs"><button class="stab ${ST.histStatus==='all'?'active':''}" data-hstatus="all">Tutti</button><button class="stab ${ST.histStatus==='pending'?'active':''}" data-hstatus="pending">In attesa</button><button class="stab ${ST.histStatus==='won'?'active':''}" data-hstatus="won">Vinte</button><button class="stab ${ST.histStatus==='lost'?'active':''}" data-hstatus="lost">Perse</button><button class="stab ${ST.sortMode==='score'?'active':''}" data-sort="score">📊 Recenti</button><button class="stab ${ST.sortMode==='time'?'active':''}" data-sort="time">⏰ Orario</button></div><div class="toolbar"><input class="search" id="searchIn" placeholder="Cerca match o categoria" value="${escapeHtml(ST.q||'')}"><select class="select" id="histCatSel">${cats.map(c=>`<option value="${escapeHtml(c)}" ${ST.histCategory===c?'selected':''}>${c==='all'?'Tutte le categorie':escapeHtml(c)}</option>`).join('')}</select><button class="btn ghost" id="histExportBtn">Esporta storico</button><button class="btn ghost" id="histClearResolved">Pulisci concluse</button><button class="btn ghost danger" id="histClearAllBtn">Cancella tutto</button></div><div class="status">Storico: <strong>${sum.tot}</strong> pick • Vinte ${sum.win} • Perse ${sum.loss} • Pending ${sum.pending} • % vinte ${fmt(sum.winPct,1)}%</div>`;
+      return;
+    }
+    if(ST.market==='datamining'){
+      stabs=`<div class="stabs"><button class="stab ${ST.sortMode==='score'?'active':''}" data-sort="score">📊 NP</button><button class="stab ${ST.sortMode==='time'?'active':''}" data-sort="time">⏰ Orario</button></div>`;
+      document.getElementById('controls').innerHTML=`${stabs}<div class="toolbar"><input class="search" id="searchIn" placeholder="Cerca partita..." value="${escapeHtml(ST.q)}"><button class="pdf-btn" id="pdfBtn">${svgPDF}<span>Scarica PDF</span></button></div><div class="status">Risultati visibili: <strong>${rows.length}</strong></div><div id="uploadStatus" class="up-status">Upload pronto. Seleziona un CSV dal riquadro sopra.</div>`;
       return;
     }
     if(['ov05','gg','o25','u25'].includes(ST.market)){
@@ -606,6 +628,29 @@ button{border:none;background:none;cursor:pointer}
       main.innerHTML=`<div class="sec"><div class="tag tag-ia">Storico</div><div class="sec-ct">${rows.length} elementi visibili</div></div>${stats}${table}<div class="mlist">${rows.map(r=>renderStoricoRow(r)).join('')}</div>`;
       return;
     }
+    if(ST.market==='datamining'){
+      if(!rows.length){main.innerHTML=`<div class="sec"><div class="tag tag-gen">DataMining</div><div class="sec-ct">Nessun dato</div></div><div class="empty"><div class="ico">📂</div><p>Carica il file DataMining Plus per visualizzare le partite.</p></div>`;return;}
+      const list = rows.map((r,i) => {
+        const badge = r.np >= 30 ? 'good' : r.np >= 15 ? 'warn' : 'neu';
+        return `<div class="mrow" ${rowOpenAttr(i)}>
+          <div class="m-ora">${escapeHtml(r.ora||'--:--')}</div>
+          <div>
+            <div class="m-name">${escapeHtml(r.match)}</div>
+            <div class="m-sub">
+              <span class="badge ${badge}">NP: ${r.np}</span>
+              <span>1: ${r.p1.toFixed(0)}% (${r.q1.toFixed(2)})</span>
+              <span>X: ${r.pX.toFixed(0)}% (${r.qX.toFixed(2)})</span>
+              <span>2: ${r.p2.toFixed(0)}% (${r.q2.toFixed(2)})</span>
+            </div>
+          </div>
+          <div class="m-right">
+            <div class="m-ind ${r.pOV25 > 50 ? 'ind-g' : r.pOV25 > 40 ? 'ind-o' : 'ind-r'}">OV25 ${r.pOV25.toFixed(0)}%</div>
+          </div>
+        </div>`;
+      }).join('');
+      main.innerHTML=`<div class="sec"><div class="tag tag-gen">📊 DataMining Plus</div><div class="sec-ct">${rows.length} partite</div></div><div class="mlist">${list}</div>`;
+      return;
+    }
     const headerMap={ov05:['tag-m1','Ov 0.5 PT'],gg:['tag-a','GG'],o25:['tag-gen','Ov 2.5'],u25:['tag-b','U 2.5'],mg13:['tag-mg','MG 1-3'],ia:['tag-ia','Stats IA'],players:['tag-a','Giocatori'],quote:['tag-mg','Quote 1X2'],gz:['tag-gz','GZ Index'],gen:['tag-gen','Generale'],hub:['tag-ia','Match Hub']};
     const [cls,lbl]=headerMap[ST.market];
     if(!rows.length){main.innerHTML=`<div class="sec"><div class="tag ${cls}">${lbl}</div><div class="sec-ct">Nessun dato disponibile</div></div><div class="empty"><div class="ico">📂</div><p>Carica il CSV corretto o modifica i filtri per vedere i risultati. I dettagli modali e l'export PDF si attivano quando c'è almeno una riga visibile.</p></div>`;return;}
@@ -615,6 +660,25 @@ button{border:none;background:none;cursor:pointer}
 
   function renderRow(r,i){
     if(ST.market==='storico') return renderStoricoRow(r);
+    if(ST.market==='datamining'){
+      const badge = r.np >= 30 ? 'good' : r.np >= 15 ? 'warn' : 'neu';
+      let html = `<div class="mrow" ${rowOpenAttr(i)}>
+        <div class="m-ora">${escapeHtml(r.ora||'--:--')}</div>
+        <div>
+          <div class="m-name">${escapeHtml(r.match)}</div>
+          <div class="m-sub">
+            <span class="badge ${badge}">NP: ${r.np}</span>
+            <span>1: ${r.p1.toFixed(0)}% (${r.q1.toFixed(2)})</span>
+            <span>X: ${r.pX.toFixed(0)}% (${r.qX.toFixed(2)})</span>
+            <span>2: ${r.p2.toFixed(0)}% (${r.q2.toFixed(2)})</span>
+          </div>
+        </div>
+        <div class="m-right">
+          <div class="m-ind ${r.pOV25 > 50 ? 'ind-g' : r.pOV25 > 40 ? 'ind-o' : 'ind-r'}">OV25 ${r.pOV25.toFixed(0)}%</div>
+        </div>
+      </div>`;
+      return html + `<div class="pickbar"><button class="pickbtn" data-addpick="${i}">➕ Aggiungi allo storico</button></div>`;
+    }
     let html='';
     if(ST.market==='ov05'){
       const dmBadge = r.dm ? `<span class="badge info" title="DataMining NP=${r.dm.np}">📊 ${r.dm.pOV05pt.toFixed(0)}% (${r.dm.qOV05pt.toFixed(2)})</span>` : '';
@@ -651,7 +715,27 @@ button{border:none;background:none;cursor:pointer}
     let score=fmt(r.score||Math.max(r.house?.total||0,r.away?.total||0),2);
     let aff=r.aff||Math.max(r.house?.aff||0,r.away?.aff||0)||3;
     let cards=''; let breakdown=''; let dmSection='';
-    if(ST.detMarket==='ov05'){
+    if(ST.detMarket==='datamining'){
+      title = r.match;
+      subtitle = `NP: ${r.np} • ${r.ora}`;
+      cards = [
+        detailKv('1', `${r.p1.toFixed(0)}% / ${r.q1.toFixed(2)}`, r.p1>50?'g':'n'),
+        detailKv('X', `${r.pX.toFixed(0)}% / ${r.qX.toFixed(2)}`),
+        detailKv('2', `${r.p2.toFixed(0)}% / ${r.q2.toFixed(2)}`, r.p2>50?'g':'n'),
+        detailKv('GG', `${r.pGG.toFixed(0)}% / ${r.qGG.toFixed(2)}`),
+        detailKv('OV15', `${r.pOV15.toFixed(0)}% / ${r.qOV15.toFixed(2)}`),
+        detailKv('OV25', `${r.pOV25.toFixed(0)}% / ${r.qOV25.toFixed(2)}`),
+        detailKv('UN35', `${r.pUN35.toFixed(0)}% / ${r.qUN35.toFixed(2)}`),
+        detailKv('OV0.5PT', `${r.pOV05pt.toFixed(0)}% / ${r.qOV05pt.toFixed(2)}`),
+        detailKv('MGE', r.mge.toFixed(2)),
+        detailKv('DIFF', r.diff.toFixed(2)),
+        detailKv('IC', r.ic),
+        detailKv('RC/RO', `${r.rc} / ${r.ro}`),
+        detailKv('SC', `${r.pSC.toFixed(0)}% (IGBC ${r.igbc})`),
+        detailKv('SO', `${r.pSO.toFixed(0)}% (IGBO ${r.igbo})`),
+      ];
+      if(r.re) breakdown = `<div class="bk"><div class="bk-t">Risultati esatti più probabili</div><div class="note">${escapeHtml(r.re).replace(/\s+/g, ' ')}</div></div>`;
+    } else if(ST.detMarket==='ov05'){
       const [dl,dc]=diffLabel(r.diff);cards=[detailKv('IND',r.ind,r.ind<320?'g':'w'),detailKv('Delta',fmt(r.delta,2)+'%',r.delta<=-20?'g':'n'),detailKv('Diff',dl,dc),detailKv('MGE',fmt(r.mge,2),r.mge>=3?'g':'n'),detailKv('Q Ov0.5',fmt(r.qrOv05,2)),detailKv('U5 / U5CT',`${r.u5Raw||'0|0'} / ${r.u5ctRaw||'0|0'}`),detailKv('COv05 / OOv05',`${fmt(r.cov05,0)}% / ${fmt(r.oov05,0)}%`)];
       if(r.dm){cards.push(detailKv('📊 DM OV0.5PT', `${r.dm.pOV05pt.toFixed(0)}% / ${r.dm.qOV05pt.toFixed(2)}`));cards.push(detailKv('📊 NP', r.dm.np));}
       breakdown=breakdownHtml(r.breakdown)+`<div class="list-inline">${r.gzAlign?`<span class="badge ${r.gzAlign.aligned?'good':'neu'}">GZ ${escapeHtml(r.gzAlign.prob.desc)}</span>`:''}${r.qvAlign&&marketSupportsQuote('ov05',r.qvAlign)?`<span class="badge alt">1X2 ${escapeHtml(r.qvAlign.golSide)}</span>`:''}</div>`;
@@ -683,9 +767,6 @@ button{border:none;background:none;cursor:pointer}
       if(r.dm){cards.push(detailKv('📊 DataMining', `NP=${r.dm.np} | GG ${r.dm.pGG.toFixed(0)}% | OV25 ${r.dm.pOV25.toFixed(0)}%`));}
       breakdown=`<div class="bk"><div class="bk-t">Pronostico finale</div><div class="note">${escapeHtml(r.advice.summary)}</div>${(r.advice.tips||[]).slice(0,3).map(x=>`<div class="bk-r"><div class="n">${escapeHtml(x.market)} • ${escapeHtml(x.tier)} • ${escapeHtml(x.reason)}</div><div class="p pos">${fmt(x.score,2)}</div></div>`).join('')}</div>`;
     }
-    if (r.dm && !['ov05','gg','o25','u25','mg13','hub'].includes(ST.detMarket)) {
-      dmSection = `<div class="bk"><div class="bk-t">📈 DataMining Plus (NP: ${r.dm.np})</div><div class="dg">${detailKv('1', `${r.dm.p1.toFixed(0)}% / ${r.dm.q1.toFixed(2)}`, r.dm.p1 > 50 ? 'g' : 'n')}${detailKv('X', `${r.dm.pX.toFixed(0)}% / ${r.dm.qX.toFixed(2)}`)}${detailKv('2', `${r.dm.p2.toFixed(0)}% / ${r.dm.q2.toFixed(2)}`, r.dm.p2 > 50 ? 'g' : 'n')}${detailKv('GG', `${r.dm.pGG.toFixed(0)}% / ${r.dm.qGG.toFixed(2)}`)}${detailKv('OV25', `${r.dm.pOV25.toFixed(0)}% / ${r.dm.qOV25.toFixed(2)}`)}${detailKv('UN35', `${r.dm.pUN35.toFixed(0)}% / ${r.dm.qUN35.toFixed(2)}`)}${detailKv('OV0.5PT', `${r.dm.pOV05pt.toFixed(0)}% / ${r.dm.qOV05pt.toFixed(2)}`)}</div>${r.dm.re ? `<div class="note">🔮 Risultati esatti più probabili:<br>${escapeHtml(r.dm.re).replace(/\s+/g, ' ')}</div>` : ''}</div>`;
-    }
     document.getElementById('detM').innerHTML=`<div class="ov" id="ovLay" aria-modal="true" role="dialog"><div class="det" onclick="event.stopPropagation()"><div class="det-top"><div><div class="det-t">${escapeHtml(title)}</div><div class="det-sub">${escapeHtml(subtitle)}</div></div><button class="det-x" id="closeDetBtn" aria-label="Chiudi dettagli">✕</button></div><div class="abar"><div><div class="abar-lb">Affidabilità</div><div class="abar-dots">${dots(aff,'lg')}</div></div><div class="abar-r"><div class="abar-lb">Score</div><div class="abar-sc">${escapeHtml(score)}</div><div class="abar-pt">${escapeHtml(ST.detMarket.toUpperCase())}</div></div></div><div class="dg">${cards.join('')}</div>${dmSection}${breakdown}</div></div>`;
     document.getElementById('ovLay').addEventListener('click', closeDetail);
     document.getElementById('closeDetBtn').addEventListener('click', closeDetail);
@@ -694,6 +775,7 @@ button{border:none;background:none;cursor:pointer}
   // ==================== EXPORT PDF ====================
   function getExportData(){
     const rows=currentRows();
+    if(ST.market==='datamining') return {title:'Match Analyzer - DataMining Plus', head:['Ora','Match','NP','1%','1Q','X%','XQ','2%','2Q','OV25%','OV25Q'], body:rows.map(r=>[r.ora,r.match,r.np,r.p1.toFixed(0),r.q1.toFixed(2),r.pX.toFixed(0),r.qX.toFixed(2),r.p2.toFixed(0),r.q2.toFixed(2),r.pOV25.toFixed(0),r.qOV25.toFixed(2)])};
     if(ST.market==='ov05') return {title:'Match Analyzer - Ov 0.5PT', head:['Ora','Evento','IND','Score','Aff','Delta','Diff','MGE'], body:rows.map(r=>[r.ora,r.evento,r.ind,fmt(r.score,2),r.aff,fmt(r.delta,2)+'%',fmt(r.diff,2),fmt(r.mge,2)])};
     if(['gg','o25','u25'].includes(ST.market)) return {title:`Match Analyzer - ${ST.market.toUpperCase()}`, head:['Ora','Evento','Lega','IGBt','Score','Aff','PGG','Diff','MGE'], body:rows.map(r=>[r.ora,r.evento,r.lega||r.nazione||'',r.igbt,fmt(r.score,2),r.aff,fmt(r.pgg,1)+'%',fmt(r.diff,2),fmt(r.mge,2)])};
     if(ST.market==='mg13') return {title:'Match Analyzer - MG 1-3', head:['Ora','Evento','Lato','Score Lato','Score Casa','Score Ospite','Aff C','Aff O'], body:rows.map(r=>[r.ora,r.evento,r.side==='ospite'?'MG 1-3 Ospite':'MG 1-3 Casa',fmt(r.score,2),fmt(r.house.total,2),fmt(r.away.total,2),r.house.aff,r.away.aff])};
