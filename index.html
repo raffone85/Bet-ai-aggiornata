@@ -180,6 +180,7 @@ button{border:none;background:none;cursor:pointer}
 const ST = {
   market:'ov05', sub:'m1', iaCat:'all', plSub:'cards', league:'all', sortMode:'score', q:'',
   ov05:[], ggov25:[], mg13:[], ia:[], plCards:[], plShots:[], gz:[], quoteValore:[],
+  dataMining: [],
   quoteFilter:'all', quoteSort:'score', gzFilter:'all', gzSort:'value', det:null, detMarket:null, detSide:null
 };
 
@@ -192,7 +193,8 @@ const DATASETS = [
   {key:'plCards',label:'Giocatori Cartellini',hint:'Tackle / Falli / Amm.'},
   {key:'plShots',label:'Giocatori Tiri/Gol',hint:'TT / TiP / Gol'},
   {key:'quoteValore',label:'Quote Valore 1X2',hint:'T1/TX/T2 + Spread'},
-  {key:'gz',label:'GZ Index',hint:'GZ / IGB / MGE / Diff'}
+  {key:'gz',label:'GZ Index',hint:'GZ / IGB / MGE / Diff'},
+  {key:'dataMining',label:'DataMining Plus',hint:'NP, % mercati, quote, RE'}
 ];
 
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
@@ -220,6 +222,95 @@ function parsePlShots(t){const L=parseCsvLines(t);if(L.length<2)return[];const s
 function parseGZ(t){const L=parseCsvLines(t);if(L.length<2)return[];const sep=L[0].includes(';')?';':',';const s=x=>(x||'').replace(/^"|"$/g,'').trim();const h=splitCsvLine(L[0],sep).map(s);const hi={};h.forEach((x,i)=>hi[x]=i);const g=(r,k)=>s(r[hi[k]]||'');const pf=x=>{if(x===''||x===undefined)return null;const v=parseFloat(String(x).replace(',','.'));return isNaN(v)?null:v;};const R=[];for(let i=1;i<L.length;i++){const f=splitCsvLine(L[i],sep).map(s);if(f.length<3)continue;let dataEv=g(f,'DATA EV.');const tm=dataEv.match(/(\d{1,2}:\d{2})/);const dt=dataEv.match(/(\d{2}-\d{2})/);const ora=(dt?dt[1].replace('-','/')+' ':'')+(tm?tm[1]:'');const evento=g(f,'EVENTO');if(!evento)continue;R.push({ora:ora.trim(),nazione:g(f,'NAZIONE'),lega:g(f,'LEGA'),evento:evento,ris:g(f,'RIS.'),gz:pf(g(f,'GZ')),gzha:pf(g(f,'GZha')),igbc:pf(g(f,'IGBc')),igbo:pf(g(f,'IGBo')),igbt:pf(g(f,'IGBt')),mge:pf(g(f,'MGE')),diff:pf(g(f,'Diff'))});}return R;}
 function parseQuoteValore(t){const L=parseCsvLines(t);if(L.length<2)return[];const sep=L[0].includes(';')?';':',';const s=x=>(x||'').replace(/^"|"$/g,'').trim();const h=splitCsvLine(L[0],sep).map(s);const idxOra=h.indexOf('Ora');const idxMatch=h.indexOf('Match');const idxR=h.indexOf('R');const idxNP=h.indexOf('NP');const idxT1=h.indexOf('T1');const idxR1=h.indexOf('R1');const idxDM1=h.indexOf('DM1');const idxSpread1=h.indexOf('Spread');const idxTX=h.indexOf('TX');const idxRX=h.indexOf('RX');const idxDMX=h.indexOf('DMX');const idxSpreadX=h.indexOf('Spread',idxDMX+1);const idxT2=h.indexOf('T2');const idxR2=h.indexOf('R2');const idxDM2=h.indexOf('DM2');const idxSpread2=h.indexOf('Spread',idxDM2+1);const pf=x=>{if(x===''||x===undefined)return 0;const v=parseFloat(String(x).replace(',','.'));return isNaN(v)?0:v;};const R=[];for(let i=1;i<L.length;i++){const f=splitCsvLine(L[i],sep).map(s);if(f.length<5)continue;const ora=s(f[idxOra]||'');const match=s(f[idxMatch]||'');if(!match)continue;R.push({ora,match,r:s(f[idxR]||''),np:parseInt(pf(f[idxNP]))||0,t1:pf(f[idxT1]),r1:pf(f[idxR1]),dm1:pf(f[idxDM1]),spread1:pf(f[idxSpread1]),tx:pf(f[idxTX]),rx:pf(f[idxRX]),dmx:pf(f[idxDMX]),spreadX:pf(f[idxSpreadX]),t2:pf(f[idxT2]),r2:pf(f[idxR2]),dm2:pf(f[idxDM2]),spread2:pf(f[idxSpread2])});}return R;}
 
+// ---------- NUOVO: PARSING DATAMINING PLUS ----------
+function parseDataMining(t) {
+  const L = parseCsvLines(t);
+  if (L.length < 2) return [];
+  const sep = L[0].includes(';') ? ';' : ',';
+  const s = x => (x || '').replace(/^"|"$/g, '').trim();
+  const header = splitCsvLine(L[0], sep).map(s);
+  
+  const idx = (name) => header.findIndex(h => h.includes(name));
+  
+  const iOra = idx('Ora');
+  const iMatch = idx('Match');
+  const iR = idx('R');
+  const iRpt = idx('Rpt');
+  const iNP = idx('NP');
+  const i1Perc = header.findIndex((h, i) => h === '1' && i > 5);
+  const i1Quota = i1Perc + 1;
+  const iXPerc = i1Quota + 1;
+  const iXQuota = iXPerc + 1;
+  const i2Perc = iXQuota + 1;
+  const i2Quota = i2Perc + 1;
+  const iMGE = idx('MGE');
+  const iDIFF = idx('DIFF');
+  const iGGPerc = header.findIndex((h, i) => h === 'GG' && i > iDIFF);
+  const iGGQuota = iGGPerc + 1;
+  const iOV15Perc = idx('OV15');
+  const iOV15Quota = iOV15Perc + 1;
+  const iOV25Perc = idx('OV25');
+  const iOV25Quota = iOV25Perc + 1;
+  const iUN35Perc = idx('UN35');
+  const iUN35Quota = iUN35Perc + 1;
+  const iOV05ptPerc = idx('OV0.5pt');
+  const iOV05ptQuota = iOV05ptPerc + 1;
+  const iIC = idx('IC');
+  const iRC = idx('RC');
+  const iRO = idx('RO');
+  const iSCPerc = idx('SC');
+  const iIGBC = idx('IGBC');
+  const iSCQuota = iSCPerc + 1;
+  const iSOPerc = idx('SO');
+  const iIGBO = idx('IGBO');
+  const iSOQuota = iSOPerc + 1;
+  const iRE = idx('RE');
+
+  const R = [];
+  for (let i = 1; i < L.length; i++) {
+    const f = splitCsvLine(L[i], sep).map(s);
+    if (f.length < 5) continue;
+    
+    const parsePerc = (v) => parseFloat((v || '0').replace('%', '').replace(',', '.')) || 0;
+    const parseFloatNum = (v) => parseFloat((v || '').replace(',', '.')) || 0;
+    const parseIntNum = (v) => parseInt(v) || 0;
+    
+    const oraRaw = f[iOra] || '';
+    const match = f[iMatch] || '';
+    if (!match) continue;
+    
+    const tm = oraRaw.match(/(\d{1,2}:\d{2})/);
+    const ora = tm ? tm[1] : oraRaw;
+    
+    R.push({
+      ora,
+      match,
+      r: f[iR] || '',
+      rpt: f[iRpt] || '',
+      np: parseIntNum(f[iNP]),
+      p1: parsePerc(f[i1Perc]), q1: parseFloatNum(f[i1Quota]),
+      pX: parsePerc(f[iXPerc]), qX: parseFloatNum(f[iXQuota]),
+      p2: parsePerc(f[i2Perc]), q2: parseFloatNum(f[i2Quota]),
+      mge: parseFloatNum(f[iMGE]),
+      diff: parseFloatNum(f[iDIFF]),
+      pGG: parsePerc(f[iGGPerc]), qGG: parseFloatNum(f[iGGQuota]),
+      pOV15: parsePerc(f[iOV15Perc]), qOV15: parseFloatNum(f[iOV15Quota]),
+      pOV25: parsePerc(f[iOV25Perc]), qOV25: parseFloatNum(f[iOV25Quota]),
+      pUN35: parsePerc(f[iUN35Perc]), qUN35: parseFloatNum(f[iUN35Quota]),
+      pOV05pt: parsePerc(f[iOV05ptPerc]), qOV05pt: parseFloatNum(f[iOV05ptQuota]),
+      ic: parseIntNum(f[iIC]),
+      rc: parseIntNum(f[iRC]),
+      ro: parseIntNum(f[iRO]),
+      pSC: parsePerc(f[iSCPerc]), igbc: parseIntNum(f[iIGBC]), qSC: parseFloatNum(f[iSCQuota]),
+      pSO: parsePerc(f[iSOPerc]), igbo: parseIntNum(f[iIGBO]), qSO: parseFloatNum(f[iSOQuota]),
+      re: f[iRE] || ''
+    });
+  }
+  return R;
+}
+  <script>
+// Continuazione dello script dalla Parte 1...
+
 function isValueSign(quotaReale, quotaDM, spread){return spread>0.15&&quotaReale>1.01&&quotaReale<3&&quotaDM>0;}
 function analyzeQuoteMatch(r){const value1=isValueSign(r.r1,r.dm1,r.spread1);const valueX=isValueSign(r.rx,r.dmx,r.spreadX);const value2=isValueSign(r.r2,r.dm2,r.spread2);let golSide=null;if(value1&&!value2)golSide='casa';else if(value2&&!value1)golSide='ospite';else if(value1&&value2)golSide='entrambe';else if(valueX)golSide='pareggio';const score=(value1?r.spread1:0)+(valueX?r.spreadX:0)+(value2?r.spread2:0);return {value1,valueX,value2,golSide,score};}
 function gzProbability(gz){if(gz===null)return {label:'N/D',desc:'Dato mancante',type:'nd'};if(gz<-1800)return {label:'U2.5 64%',desc:'Under 2.5 al 64%',type:'under'};if(gz<-1200)return {label:'U3.5 81%',desc:'Under 3.5 al 81%',type:'under'};if(gz>5000)return {label:'Ov2.5 64%',desc:'Over 2.5 al 64%',type:'over'};if(gz>1000)return {label:'Ov1.5 80%',desc:'Over 1.5 al 80%',type:'over'};if(gz>-200&&gz<200)return {label:'Ov0.5 95%',desc:'Over 0.5 al 95%',type:'over'};return {label:'Normale',desc:'Nessuna indicazione forte',type:'neutral'};}
@@ -227,6 +318,14 @@ function getGzAlignment(evento,requiredType){if(!ST.gz.length)return null;const 
 function getQuoteAlignment(evento){if(!ST.quoteValore.length)return null;const matchQv=ST.quoteValore.find(q=>normName(q.match)===normName(evento));if(!matchQv)return null;const analysis=analyzeQuoteMatch(matchQv);if(!analysis.golSide)return null;return {golSide:analysis.golSide,score:analysis.score,value1:analysis.value1,valueX:analysis.valueX,value2:analysis.value2};}
 function marketSupportsQuote(market,qv){if(!qv)return false;if(market==='ov05')return ['casa','ospite','entrambe'].includes(qv.golSide);if(market==='gg')return qv.golSide==='entrambe';if(market==='o25')return ['casa','ospite','entrambe'].includes(qv.golSide);if(market==='u25')return qv.golSide==='pareggio';if(market==='mg13')return ['casa','ospite','pareggio'].includes(qv.golSide);return false;}
 function marketSupportsGz(market,gz){if(!gz)return false;if(['ov05','gg','o25'].includes(market))return gz.prob.type==='over';if(market==='u25')return gz.prob.type==='under';if(market==='mg13')return ['over','under','neutral'].includes(gz.prob.type);return false;}
+
+// ---------- NUOVO HELPER PER DATAMINING ----------
+function getDataMiningForMatch(evento) {
+  if (!ST.dataMining || !ST.dataMining.length) return null;
+  const normEv = normName(evento);
+  return ST.dataMining.find(dm => normName(dm.match) === normEv) || null;
+}
+
 function hubAdvice(h){
   const tips=[];
   if(h.o25&&h.o25.aff>=4&&h.gzOver&&h.qvForGoals)tips.push({market:'Ov 2.5',tier:'TOP',score:(h.o25?.score||0)+(h.conv||0),reason:'IGBt e MGE forti con conferma GZ over e 1X2 coerente'});
@@ -259,7 +358,7 @@ function hubAdvice(h){
   return {tips,main,alt,risk,summary};
 }
 
-function buildHubMatchMap(){const map={};const ensure=(evento,ora='')=>{const k=normName(evento);if(!k)return null;if(!map[k])map[k]={key:k,evento:evento,ora:ora,ov05:null,gg:null,o25:null,u25:null,mg13:null,ia:null,qv:null,gz:null};return map[k];};getOv05Rows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.ov05)m.ov05=r;});getGgRows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.gg)m.gg=r;});getO25Rows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.o25)m.o25=r;});getU25Rows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.u25)m.u25=r;});getMgRows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.mg13)m.mg13={...r,aff:Math.max(r.house.aff,r.away.aff),score:Math.max(r.house.total,r.away.total)};});getIaRows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.ia)m.ia=r;});ST.quoteValore.forEach(r=>{const m=ensure(r.match,r.ora);if(m&&!m.qv)m.qv={...r,...analyzeQuoteMatch(r)};});ST.gz.forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.gz)m.gz={...r,prob:gzProbability(r.gz)};});const rows=[];for(const m of Object.values(map)){const gzOver=!!(m.gz&&m.gz.prob.type==='over');const gzUnder=!!(m.gz&&m.gz.prob.type==='under');const gzMid=!!(m.gz&&m.gz.prob.type==='neutral');const qvForGoals=!!(m.qv&&['casa','ospite','entrambe'].includes(m.qv.golSide));const qvBoth=!!(m.qv&&m.qv.golSide==='entrambe');const qvTight=!!(m.qv&&m.qv.golSide==='pareggio');const coverage=[m.ov05,m.gg||m.o25||m.u25,m.qv,m.gz].filter(Boolean).length;const conflicts=(m.o25&&gzUnder?1:0)+(m.u25&&gzOver?1:0)+(m.gg&&m.qv&&m.qv.golSide==='pareggio'?1:0);const conv=(m.gz?1:0)+(m.qv?1:0)+(m.ia&&m.ia.avgAff>=2.5?1:0);const h={...m,gzOver,gzUnder,gzMid,qvForGoals,qvBoth,qvTight,coverage,conflicts,conv};const advice=hubAdvice(h);rows.push({...h,advice,score:advice.main?advice.main.score:0,aff:Math.max(1,Math.min(5,coverage+conv-conflicts))});}return rows.sort((a,b)=>b.score-a.score||sortTime(a,b));}
+function buildHubMatchMap(){const map={};const ensure=(evento,ora='')=>{const k=normName(evento);if(!k)return null;if(!map[k])map[k]={key:k,evento:evento,ora:ora,ov05:null,gg:null,o25:null,u25:null,mg13:null,ia:null,qv:null,gz:null,dm:null};return map[k];};getOv05Rows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.ov05)m.ov05=r;});getGgRows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.gg)m.gg=r;});getO25Rows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.o25)m.o25=r;});getU25Rows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.u25)m.u25=r;});getMgRows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.mg13)m.mg13={...r,aff:Math.max(r.house.aff,r.away.aff),score:Math.max(r.house.total,r.away.total)};});getIaRows().forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.ia)m.ia=r;});ST.quoteValore.forEach(r=>{const m=ensure(r.match,r.ora);if(m&&!m.qv)m.qv={...r,...analyzeQuoteMatch(r)};});ST.gz.forEach(r=>{const m=ensure(r.evento,r.ora);if(m&&!m.gz)m.gz={...r,prob:gzProbability(r.gz)};});ST.dataMining.forEach(r=>{const m=ensure(r.match,r.ora);if(m&&!m.dm)m.dm=r;});const rows=[];for(const m of Object.values(map)){const gzOver=!!(m.gz&&m.gz.prob.type==='over');const gzUnder=!!(m.gz&&m.gz.prob.type==='under');const gzMid=!!(m.gz&&m.gz.prob.type==='neutral');const qvForGoals=!!(m.qv&&['casa','ospite','entrambe'].includes(m.qv.golSide));const qvBoth=!!(m.qv&&m.qv.golSide==='entrambe');const qvTight=!!(m.qv&&m.qv.golSide==='pareggio');let coverage=[m.ov05,m.gg||m.o25||m.u25,m.qv,m.gz].filter(Boolean).length;if(m.dm && m.dm.np>=30) coverage++;let conflicts=(m.o25&&gzUnder?1:0)+(m.u25&&gzOver?1:0)+(m.gg&&m.qv&&m.qv.golSide==='pareggio'?1:0);if(m.dm){if(m.o25&&m.o25.aff>=4&&m.dm.pOV25<45) conflicts++;if(m.u25&&m.u25.aff>=4&&m.dm.pUN35<60) conflicts++;if(m.gg&&m.gg.aff>=4&&m.dm.pGG<45) conflicts++;}const conv=(m.gz?1:0)+(m.qv?1:0)+(m.ia&&m.ia.avgAff>=2.5?1:0);const h={...m,gzOver,gzUnder,gzMid,qvForGoals,qvBoth,qvTight,coverage,conflicts,conv};const advice=hubAdvice(h);rows.push({...h,advice,score:advice.main?advice.main.score:0,aff:Math.max(1,Math.min(5,coverage+conv-conflicts))});}return rows.sort((a,b)=>b.score-a.score||sortTime(a,b));}
 function getHubRows(){let rows=buildHubMatchMap();rows=filt(rows);return ST.sortMode==='time'?[...rows].sort(sortTime):rows;}
 
 function scoreAmm(r){const b=[];if(r.amm>=.4)b.push({n:'Amm/p >= 0.40',p:3});else if(r.amm>=.3)b.push({n:'Amm/p 0.30-0.39',p:2.5});else if(r.amm>=.2)b.push({n:'Amm/p 0.20-0.29',p:1.5});else b.push({n:'Amm/p < 0.20',p:0});if(r.falli>=2.5)b.push({n:'Falli >= 2.5',p:2.5});else if(r.falli>=2)b.push({n:'Falli 2.0-2.49',p:2});else if(r.falli>=1.5)b.push({n:'Falli 1.5-1.99',p:1});else b.push({n:'Falli < 1.5',p:0});if(r.rit>=5)b.push({n:'Ritardo >= 5',p:2});else if(r.rit>=3)b.push({n:'Ritardo 3-4',p:1.5});else if(r.rit>=1)b.push({n:'Ritardo 1-2',p:.5});else b.push({n:'Ritardo 0',p:0});if(r.tackle>=2)b.push({n:'Tackle >= 2.0',p:1.5});else if(r.tackle>=1)b.push({n:'Tackle 1.0-1.99',p:.75});else b.push({n:'Tackle < 1.0',p:0});if(r.min>=70)b.push({n:'Minuti >= 70',p:.5});else b.push({n:'Minuti < 70',p:0});const tot=b.reduce((s,x)=>s+x.p,0);return {breakdown:b,total:tot,max:9.5,level:tot>=7?'hot':tot>=5?'warm':'mild'};}
@@ -295,11 +394,11 @@ function currentRows(){
   }
 }
 function sortRows(rows, scoreKey='score'){const arr=[...rows];if(ST.sortMode==='time')return arr.sort(sortTime);return arr.sort((a,b)=>(b[scoreKey]??0)-(a[scoreKey]??0)||sortTime(a,b));}
-function getOv05Rows(){let rows=ST.ov05.map(r=>{const a=ov05AFF(r);const gz=getGzAlignment(r.evento,'over');const qv=getQuoteAlignment(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'Ov 0.5PT',m1:ov05M1(r),gzAlign:gz,qvAlign:qv};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filt(rows);return sortRows(rows,'score');}
-function getGgRows(){let rows=ST.ggov25.map(r=>{const a=ggAFF(r);const gz=getGzAlignment(r.evento,'over');const qv=getQuoteAlignment(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'GG',m1:ggM1(r),gzAlign:gz,qvAlign:qv};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
-function getO25Rows(){let rows=ST.ggov25.map(r=>{const a=o25AFF(r);const gz=getGzAlignment(r.evento,'over');const qv=getQuoteAlignment(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'Ov 2.5',m1:o25M1(r),gzAlign:gz,qvAlign:qv};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
-function getU25Rows(){let rows=ST.ggov25.map(r=>{const a=u25AFF(r);const gz=getGzAlignment(r.evento,'under');const qv=getQuoteAlignment(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'U 2.5',m1:u25M1(r),gzAlign:gz,qvAlign:qv};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
-function getMgRows(){let rows=ST.mg13.map(r=>{const house=mg13AFF_C(r), away=mg13AFF_O(r);const useHouse=ST.detSide==='ospite'?false:ST.sub!=='ospite';const aff=ST.sub==='ospite'?away.aff:house.aff;return {...r,score:Math.max(house.total,away.total),house,away,aff,breakdown:ST.sub==='ospite'?away.breakdown:house.breakdown,side:ST.sub==='ospite'?'ospite':'casa',m1c:mg13M1C(r),m1o:mg13M1O(r)};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1c||r.m1o);rows=filt(rows);if(ST.sortMode==='time')return rows.sort(sortTime);return rows.sort((a,b)=>{const sa=ST.sub==='ospite'?a.away.total:a.house.total;const sb=ST.sub==='ospite'?b.away.total:b.house.total;return sb-sa||sortTime(a,b);});}
+function getOv05Rows(){let rows=ST.ov05.map(r=>{const a=ov05AFF(r);const gz=getGzAlignment(r.evento,'over');const qv=getQuoteAlignment(r.evento);const dm=getDataMiningForMatch(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'Ov 0.5PT',m1:ov05M1(r),gzAlign:gz,qvAlign:qv,dm:dm};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filt(rows);return sortRows(rows,'score');}
+function getGgRows(){let rows=ST.ggov25.map(r=>{const a=ggAFF(r);const gz=getGzAlignment(r.evento,'over');const qv=getQuoteAlignment(r.evento);const dm=getDataMiningForMatch(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'GG',m1:ggM1(r),gzAlign:gz,qvAlign:qv,dm:dm};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
+function getO25Rows(){let rows=ST.ggov25.map(r=>{const a=o25AFF(r);const gz=getGzAlignment(r.evento,'over');const qv=getQuoteAlignment(r.evento);const dm=getDataMiningForMatch(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'Ov 2.5',m1:o25M1(r),gzAlign:gz,qvAlign:qv,dm:dm};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
+function getU25Rows(){let rows=ST.ggov25.map(r=>{const a=u25AFF(r);const gz=getGzAlignment(r.evento,'under');const qv=getQuoteAlignment(r.evento);const dm=getDataMiningForMatch(r.evento);return {...r,score:a.total,aff:a.aff,breakdown:a.breakdown,marketLabel:'U 2.5',m1:u25M1(r),gzAlign:gz,qvAlign:qv,dm:dm};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1);rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
+function getMgRows(){let rows=ST.mg13.map(r=>{const house=mg13AFF_C(r), away=mg13AFF_O(r);const useHouse=ST.detSide==='ospite'?false:ST.sub!=='ospite';const aff=ST.sub==='ospite'?away.aff:house.aff;const dm=getDataMiningForMatch(r.evento);return {...r,score:Math.max(house.total,away.total),house,away,aff,breakdown:ST.sub==='ospite'?away.breakdown:house.breakdown,side:ST.sub==='ospite'?'ospite':'casa',m1c:mg13M1C(r),m1o:mg13M1O(r),dm:dm};});if(ST.sub==='m1')rows=rows.filter(r=>r.m1c||r.m1o);rows=filt(rows);if(ST.sortMode==='time')return rows.sort(sortTime);return rows.sort((a,b)=>{const sa=ST.sub==='ospite'?a.away.total:a.house.total;const sb=ST.sub==='ospite'?b.away.total:b.house.total;return sb-sa||sortTime(a,b);});}
 function getIaRows(){let rows=ST.ia.map(r=>({...r,score:r.avgAff,aff:r.maxAff>=4?5:r.maxAff>=3?4:r.maxAff>=2.5?3:r.maxAff>=1.5?2:1}));if(ST.iaCat!=='all')rows=rows.filter(r=>r.stats.some(s=>s.key===ST.iaCat));rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
 function getPlayerRows(){const isCards=ST.plSub==='cards';let rows=(isCards?ST.plCards:ST.plShots).map(r=>{const a=isCards?scoreAmm(r):scoreGol(r);return {...r,score:a.total,level:a.level,breakdown:a.breakdown,aff:a.total>=7?5:a.total>=5?4:a.total>=3.5?3:a.total>=2?2:1,marketLabel:isCards?'Cartellini':'Gol/Tiri'};});rows=filtLeague(rows,'lega');return sortRows(rows,'score');}
 function getQuoteRows(){let rows=ST.quoteValore.map(r=>{const a=analyzeQuoteMatch(r);return {...r,score:a.score,...a};});if(ST.quoteFilter!=='all')rows=rows.filter(r=>r.golSide===ST.quoteFilter);rows=filt(rows);return ST.sortMode==='time'?[...rows].sort(sortTime):[...rows].sort((a,b)=>b.score-a.score||sortTime(a,b));}
@@ -372,17 +471,34 @@ function renderRows(){
 }
 
 function renderRow(r,i){
-  if(ST.market==='ov05') return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub">${r.m1?'<span class="badge good">M1</span>':''}${r.gzAlign?`<span class="badge ${r.gzAlign.aligned?'good':'neu'}">GZ ${escapeHtml(r.gzAlign.prob.label)}</span>`:''}${r.qvAlign&&marketSupportsQuote('ov05',r.qvAlign)?`<span class="badge alt">1X2 ${escapeHtml(r.qvAlign.golSide)}</span>`:''}</div></div><div class="m-right">${affBadge(r.aff)}${indB(r.ind,'ov05')}</div></div>`;
-  if(['gg','o25','u25'].includes(ST.market)) return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub"><span>${escapeHtml(r.lega||r.nazione||'')}</span>${r.m1?'<span class="badge good">M1</span>':''}${r.gzAlign?`<span class="badge ${r.gzAlign.aligned?'good':'neu'}">GZ ${escapeHtml(r.gzAlign.prob.label)}</span>`:''}</div></div><div class="m-right">${affBadge(r.aff)}${indB(ST.market==='gg'?r.igbt:r.igbt,'igbt')}</div></div>`;
-  if(ST.market==='mg13'){const side=ST.sub==='ospite'?'O':'C';const showAff=ST.sub==='ospite'?r.away.aff:r.house.aff;const ind=ST.sub==='ospite'?r.ica:r.ich;return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub"><span class="badge alt">${ST.sub==='ospite'?'Ospite':'Casa / Mix'}</span>${r.m1c?'<span class="badge good">M1 C</span>':''}${r.m1o?'<span class="badge info">M1 O</span>':''}</div></div><div class="m-right">${affBadge(showAff)}${indB(ind,'mg')}</div></div>`;}
+  if(ST.market==='ov05'){
+    const dmBadge = r.dm ? `<span class="badge info" title="DataMining NP=${r.dm.np}">📊 ${r.dm.pOV05pt.toFixed(0)}% (${r.dm.qOV05pt.toFixed(2)})</span>` : '';
+    return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub">${r.m1?'<span class="badge good">M1</span>':''}${r.gzAlign?`<span class="badge ${r.gzAlign.aligned?'good':'neu'}">GZ ${escapeHtml(r.gzAlign.prob.label)}</span>`:''}${r.qvAlign&&marketSupportsQuote('ov05',r.qvAlign)?`<span class="badge alt">1X2 ${escapeHtml(r.qvAlign.golSide)}</span>`:''}${dmBadge}</div></div><div class="m-right">${affBadge(r.aff)}${indB(r.ind,'ov05')}</div></div>`;
+  }
+  if(['gg','o25','u25'].includes(ST.market)){
+    const dmBadge = r.dm ? `<span class="badge info" title="DataMining NP=${r.dm.np}">📊 GG:${r.dm.pGG.toFixed(0)}% O25:${r.dm.pOV25.toFixed(0)}%</span>` : '';
+    return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub"><span>${escapeHtml(r.lega||r.nazione||'')}</span>${r.m1?'<span class="badge good">M1</span>':''}${r.gzAlign?`<span class="badge ${r.gzAlign.aligned?'good':'neu'}">GZ ${escapeHtml(r.gzAlign.prob.label)}</span>`:''}${dmBadge}</div></div><div class="m-right">${affBadge(r.aff)}${indB(ST.market==='gg'?r.igbt:r.igbt,'igbt')}</div></div>`;
+  }
+  if(ST.market==='mg13'){
+    const side=ST.sub==='ospite'?'O':'C';
+    const showAff=ST.sub==='ospite'?r.away.aff:r.house.aff;
+    const ind=ST.sub==='ospite'?r.ica:r.ich;
+    const dmBadge = r.dm ? `<span class="badge info" title="DataMining NP=${r.dm.np}">📊 MGE:${r.dm.mge.toFixed(2)} DIFF:${r.dm.diff.toFixed(2)}</span>` : '';
+    return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub"><span class="badge alt">${ST.sub==='ospite'?'Ospite':'Casa / Mix'}</span>${r.m1c?'<span class="badge good">M1 C</span>':''}${r.m1o?'<span class="badge info">M1 O</span>':''}${dmBadge}</div></div><div class="m-right">${affBadge(showAff)}${indB(ind,'mg')}</div></div>`;
+  }
   if(ST.market==='ia') return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub"><span>${escapeHtml(r.lega||'')}</span>${r.stats.slice(0,3).map(s=>`<span class="badge ${s.aff>=3?'good':s.aff>=2?'warn':'neu'}">${escapeHtml(s.key)} ${escapeHtml(s.pred)}</span>`).join('')}</div></div><div class="m-right">${affBadge(r.aff)}<div class="m-ind ind-r">${fmt(r.avgAff,1)}</div></div></div>`;
   if(ST.market==='players') return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.nome)}</div><div class="m-sub"><span>${escapeHtml(r.squadra||'')}</span><span>${escapeHtml(r.partita||'')}</span></div></div><div class="m-right">${affBadge(r.aff)}<div class="m-ind ${r.level==='hot'?'ind-g':r.level==='warm'?'ind-o':'ind-r'}">${fmt(r.score,1)}</div></div></div>`;
   if(ST.market==='quote') return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.match)}</div><div class="m-sub">${r.value1?'<span class="badge good">1 value</span>':''}${r.valueX?'<span class="badge warn">X value</span>':''}${r.value2?'<span class="badge info">2 value</span>':''}${r.golSide?`<span class="badge alt">${escapeHtml(r.golSide)}</span>`:''}</div></div><div class="m-right"><div class="m-ind ${r.score>=0.8?'ind-g':r.score>=0.35?'ind-o':'ind-r'}">${fmt(r.score,2)}</div></div></div>`;
   if(ST.market==='gz') return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub"><span>${escapeHtml(r.lega||'')}</span><span class="badge ${r.prob.type==='over'?'good':r.prob.type==='under'?'warn':'neu'}">${escapeHtml(r.prob.label)}</span></div></div><div class="m-right"><div class="m-ind ${Math.abs(r.gz||0)>=5000?'ind-g':Math.abs(r.gz||0)>=1200?'ind-o':'ind-r'}">${fmt(r.gz,0)}</div></div></div>`;
   if(ST.market==='gen') return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub"><span class="badge alt">${escapeHtml(r.market)}</span><span>${escapeHtml(r.advice||'')}</span></div></div><div class="m-right">${affBadge(r.aff||3)}<div class="m-ind ind-g">${fmt(r.score,1)}</div></div></div>`;
-  if(ST.market==='hub') return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub">${r.advice.main?`<span class="badge good">${escapeHtml(r.advice.main.market)}</span>`:''}${r.gzOver?'<span class="badge good">GZ over</span>':''}${r.gzUnder?'<span class="badge warn">GZ under</span>':''}${r.qvForGoals?'<span class="badge alt">1X2 gol</span>':''}${r.qvTight?'<span class="badge info">1X2 draw</span>':''}<span>${escapeHtml(r.advice.summary)}</span></div></div><div class="m-right">${affBadge(r.aff||3)}<div class="m-ind ${r.conflicts===0?'ind-g':r.conflicts===1?'ind-o':'ind-r'}">${fmt(r.score,1)}</div></div></div>`;
+  if(ST.market==='hub'){
+    const dmBadge = r.dm ? `<span class="badge info" title="DataMining NP=${r.dm.np}">📊 DM: ${r.dm.np} partite</span>` : '';
+    return `<div class="mrow" ${rowOpenAttr(i)}><div class="m-ora">${escapeHtml(r.ora||'--:--')}</div><div><div class="m-name">${escapeHtml(r.evento)}</div><div class="m-sub">${r.advice.main?`<span class="badge good">${escapeHtml(r.advice.main.market)}</span>`:''}${r.gzOver?'<span class="badge good">GZ over</span>':''}${r.gzUnder?'<span class="badge warn">GZ under</span>':''}${r.qvForGoals?'<span class="badge alt">1X2 gol</span>':''}${r.qvTight?'<span class="badge info">1X2 draw</span>':''}${dmBadge}<span>${escapeHtml(r.advice.summary)}</span></div></div><div class="m-right">${affBadge(r.aff||3)}<div class="m-ind ${r.conflicts===0?'ind-g':r.conflicts===1?'ind-o':'ind-r'}">${fmt(r.score,1)}</div></div></div>`;
+  }
   return '';
 }
+  <script>
+// Continuazione dello script dalla Parte 2...
 
 function detailKv(label,val,cls='n'){return `<div class="dc"><div class="dc-l">${escapeHtml(label)}</div><div class="dc-v ${cls}">${escapeHtml(val)}</div></div>`;}
 function breakdownHtml(breakdown){if(!breakdown||!breakdown.length)return '<div class="note">Nessun breakdown disponibile.</div>';const total=breakdown.reduce((s,x)=>s+x.p,0);return `<div class="bk"><div class="bk-t">Breakdown punteggio</div>${breakdown.map(x=>`<div class="bk-r"><div class="n">${escapeHtml(x.n)}</div><div class="p ${x.p>0?'pos':'zero'}">+${fmt(x.p,2)}</div></div>`).join('')}<div class="bk-tot"><span>Totale</span><span class="p">${fmt(total,2)}</span></div></div>`;}
@@ -397,12 +513,26 @@ function renderDetail(){
   let cards=''; let breakdown='';
   if(ST.detMarket==='ov05'){
     const [dl,dc]=diffLabel(r.diff);cards=[detailKv('IND',r.ind,r.ind<320?'g':'w'),detailKv('Delta',fmt(r.delta,2)+'%',r.delta<=-20?'g':'n'),detailKv('Diff',dl,dc),detailKv('MGE',fmt(r.mge,2),r.mge>=3?'g':'n'),detailKv('Q Ov0.5',fmt(r.qrOv05,2)),detailKv('U5 / U5CT',`${r.u5Raw||'0|0'} / ${r.u5ctRaw||'0|0'}`),detailKv('COv05 / OOv05',`${fmt(r.cov05,0)}% / ${fmt(r.oov05,0)}%`)];
+    if(r.dm){
+      cards.push(detailKv('📊 DM OV0.5PT', `${r.dm.pOV05pt.toFixed(0)}% / ${r.dm.qOV05pt.toFixed(2)}`));
+      cards.push(detailKv('📊 NP', r.dm.np));
+    }
     breakdown=breakdownHtml(r.breakdown)+`<div class="list-inline">${r.gzAlign?`<span class="badge ${r.gzAlign.aligned?'good':'neu'}">GZ ${escapeHtml(r.gzAlign.prob.desc)}</span>`:''}${r.qvAlign&&marketSupportsQuote('ov05',r.qvAlign)?`<span class="badge alt">1X2 ${escapeHtml(r.qvAlign.golSide)}</span>`:''}</div>`;
   } else if(['gg','o25','u25'].includes(ST.detMarket)){
     const [dl,dc]=diffLabel(r.diff);cards=[detailKv('IGBc',r.igbc,r.igbc>=150?'g':'n'),detailKv('IGBo',r.igbo,r.igbo>=150?'g':'n'),detailKv('IGBt',r.igbt,r.igbt>=300?'g':'n'),detailKv('MGE',fmt(r.mge,2),r.mge>=3?'g':'n'),detailKv('Diff',dl,dc),detailKv('PGG',fmt(r.pgg,1)+'%'),detailKv('S1-S2',r.s12),detailKv('qOv2.5',fmt(r.qov25,2))];
+    if(r.dm){
+      cards.push(detailKv('📊 DM GG', `${r.dm.pGG.toFixed(0)}% / ${r.dm.qGG.toFixed(2)}`));
+      cards.push(detailKv('📊 DM OV25', `${r.dm.pOV25.toFixed(0)}% / ${r.dm.qOV25.toFixed(2)}`));
+      cards.push(detailKv('📊 NP', r.dm.np));
+    }
     breakdown=breakdownHtml(r.breakdown)+`<div class="list-inline">${r.gzAlign?`<span class="badge ${r.gzAlign.aligned?'good':'neu'}">${escapeHtml(r.gzAlign.prob.desc)}</span>`:''}${r.qvAlign&&marketSupportsQuote(ST.detMarket,r.qvAlign)?`<span class="badge alt">1X2 ${escapeHtml(r.qvAlign.golSide)}</span>`:''}${r.m1?'<span class="badge good">Match selezionato in M1</span>':''}</div>`;
   } else if(ST.detMarket==='mg13'){
     score=fmt(r.side==='ospite'?r.away.total:r.house.total,2);aff=r.side==='ospite'?r.away.aff:r.house.aff;cards=[detailKv('Pronostico lato',r.side==='ospite'?'MG 1-3 Ospite':'MG 1-3 Casa','g'),detailKv('ICH',r.ich,r.ich<=350?'g':'n'),detailKv('ICA',r.ica,r.ica<=350?'g':'n'),detailKv('VarC / VarO',`${fmt(r.varc,1)}% / ${fmt(r.varo,1)}%`),detailKv('MGFC / MGFO',`${fmt(r.mgfc,2)} / ${fmt(r.mgfo,2)}`),detailKv('MGSO / MGSC',`${fmt(r.mgso,2)} / ${fmt(r.mgsc,2)}`),detailKv('RitC / RitO',`${r.ritc} / ${r.rito}`),detailKv('Q1 / Q2',`${fmt(r.q1,2)} / ${fmt(r.q2,2)}`)];
+    if(r.dm){
+      cards.push(detailKv('📊 DM MGE', r.dm.mge.toFixed(2)));
+      cards.push(detailKv('📊 DM DIFF', r.dm.diff.toFixed(2)));
+      cards.push(detailKv('📊 NP', r.dm.np));
+    }
     breakdown=`<div class="bk"><div class="bk-t">Casa</div>${r.house.breakdown.map(x=>`<div class="bk-r"><div class="n">${escapeHtml(x.n)}</div><div class="p ${x.p>0?'pos':'zero'}">+${fmt(x.p,2)}</div></div>`).join('')}<div class="bk-tot"><span>Totale Casa</span><span class="p">${fmt(r.house.total,2)}</span></div></div><div class="bk"><div class="bk-t">Ospite</div>${r.away.breakdown.map(x=>`<div class="bk-r"><div class="n">${escapeHtml(x.n)}</div><div class="p ${x.p>0?'pos':'zero'}">+${fmt(x.p,2)}</div></div>`).join('')}<div class="bk-tot"><span>Totale Ospite</span><span class="p">${fmt(r.away.total,2)}</span></div></div>`;
   } else if(ST.detMarket==='ia'){
     cards=[detailKv('Lega',r.lega||'N/D'),detailKv('Nazione',r.nazione||'N/D'),detailKv('Stats',r.stats.length),detailKv('Avg Aff',fmt(r.avgAff,2),r.avgAff>=3?'g':'n'),detailKv('Max Aff',fmt(r.maxAff,2),r.maxAff>=3?'g':'n'),detailKv('High Count',r.highCount)];
@@ -421,10 +551,32 @@ function renderDetail(){
     breakdown=`<div class="bk"><div class="bk-t">Consiglio generale</div><div class="note">${escapeHtml(r.advice||'Voce aggregata dalla vista generale.')}</div></div>`;
   } else if(ST.detMarket==='hub'){
     cards=[detailKv('Pronostico top',r.advice.main?.market||'N/D',r.advice.main?'g':'n'),detailKv('Alternativa',r.advice.alt?.market||'N/D'),detailKv('Copertura fonti',`${r.coverage}/4`,r.coverage>=3?'g':'n'),detailKv('Conflitti',r.conflicts,r.conflicts===0?'g':r.conflicts===1?'w':'n'),detailKv('Rischio',r.advice.risk,r.advice.risk==='Basso'?'g':r.advice.risk==='Medio'?'w':'n'),detailKv('GZ / 1X2',`${r.gz?.prob?.label||'N/D'} / ${r.qv?.golSide||'N/D'}`)];
+    if(r.dm){
+      cards.push(detailKv('📊 DataMining', `NP=${r.dm.np} | GG ${r.dm.pGG.toFixed(0)}% | OV25 ${r.dm.pOV25.toFixed(0)}%`));
+    }
     breakdown=`<div class="bk"><div class="bk-t">Pronostico finale</div><div class="note">${escapeHtml(r.advice.summary)}</div>${(r.advice.tips||[]).slice(0,3).map(x=>`<div class="bk-r"><div class="n">${escapeHtml(x.market)} • ${escapeHtml(x.tier)} • ${escapeHtml(x.reason)}</div><div class="p pos">${fmt(x.score,2)}</div></div>`).join('')}</div>`;
   }
 
-  document.getElementById('detM').innerHTML=`<div class="ov" id="ovLay" aria-modal="true" role="dialog"><div class="det" onclick="event.stopPropagation()"><div class="det-top"><div><div class="det-t">${escapeHtml(title)}</div><div class="det-sub">${escapeHtml(subtitle)}</div></div><button class="det-x" id="closeDetBtn" aria-label="Chiudi dettagli">✕</button></div><div class="abar"><div><div class="abar-lb">Affidabilità</div><div class="abar-dots">${dots(aff,'lg')}</div></div><div class="abar-r"><div class="abar-lb">Score</div><div class="abar-sc">${escapeHtml(score)}</div><div class="abar-pt">${escapeHtml(ST.detMarket.toUpperCase())}</div></div></div><div class="dg">${cards.join('')}</div>${breakdown}</div></div>`;
+  let dmSection = '';
+  if (r.dm && !['ov05','gg','o25','u25','mg13','hub'].includes(ST.detMarket)) {
+    dmSection = `
+      <div class="bk">
+        <div class="bk-t">📈 DataMining Plus (NP: ${r.dm.np})</div>
+        <div class="dg">
+          ${detailKv('1', `${r.dm.p1.toFixed(0)}% / ${r.dm.q1.toFixed(2)}`, r.dm.p1 > 50 ? 'g' : 'n')}
+          ${detailKv('X', `${r.dm.pX.toFixed(0)}% / ${r.dm.qX.toFixed(2)}`)}
+          ${detailKv('2', `${r.dm.p2.toFixed(0)}% / ${r.dm.q2.toFixed(2)}`, r.dm.p2 > 50 ? 'g' : 'n')}
+          ${detailKv('GG', `${r.dm.pGG.toFixed(0)}% / ${r.dm.qGG.toFixed(2)}`)}
+          ${detailKv('OV25', `${r.dm.pOV25.toFixed(0)}% / ${r.dm.qOV25.toFixed(2)}`)}
+          ${detailKv('UN35', `${r.dm.pUN35.toFixed(0)}% / ${r.dm.qUN35.toFixed(2)}`)}
+          ${detailKv('OV0.5PT', `${r.dm.pOV05pt.toFixed(0)}% / ${r.dm.qOV05pt.toFixed(2)}`)}
+        </div>
+        ${r.dm.re ? `<div class="note">🔮 Risultati esatti più probabili:<br>${escapeHtml(r.dm.re).replace(/\s+/g, ' ')}</div>` : ''}
+      </div>
+    `;
+  }
+
+  document.getElementById('detM').innerHTML=`<div class="ov" id="ovLay" aria-modal="true" role="dialog"><div class="det" onclick="event.stopPropagation()"><div class="det-top"><div><div class="det-t">${escapeHtml(title)}</div><div class="det-sub">${escapeHtml(subtitle)}</div></div><button class="det-x" id="closeDetBtn" aria-label="Chiudi dettagli">✕</button></div><div class="abar"><div><div class="abar-lb">Affidabilità</div><div class="abar-dots">${dots(aff,'lg')}</div></div><div class="abar-r"><div class="abar-lb">Score</div><div class="abar-sc">${escapeHtml(score)}</div><div class="abar-pt">${escapeHtml(ST.detMarket.toUpperCase())}</div></div></div><div class="dg">${cards.join('')}</div>${dmSection}${breakdown}</div></div>`;
   document.getElementById('ovLay').addEventListener('click', closeDetail);
   document.getElementById('closeDetBtn').addEventListener('click', closeDetail);
 }
@@ -464,7 +616,7 @@ function clearDatasetState(key){try{localStorage.removeItem(datasetStorageKey(ke
 function restoreDatasets(){DATASETS.forEach(d=>{const rows=loadDatasetState(d.key); if(Array.isArray(rows)&&rows.length) ST[d.key]=rows;});}
 
 function parseAndStore(key,text){
-  const map={ov05:parseOv05,ggov25:parseGGOv25,mg13:parseMG13,ia:parseIA,plCards:parsePlCards,plShots:parsePlShots,quoteValore:parseQuoteValore,gz:parseGZ};
+  const map={ov05:parseOv05,ggov25:parseGGOv25,mg13:parseMG13,ia:parseIA,plCards:parsePlCards,plShots:parsePlShots,quoteValore:parseQuoteValore,gz:parseGZ,dataMining:parseDataMining};
   if(!map[key])throw new Error('Dataset non gestito');
   const data=map[key](text);
   ST[key]=Array.isArray(data)?data:[];
@@ -475,28 +627,13 @@ function parseAndStore(key,text){
   render();
 }
 
-function exportVisibleCsv(){
-  const rows=currentRows(); if(!rows.length){alert('Nessun dato visibile da esportare.');return;}
-  const exp=getExportData();
-  const csv=[exp.head.map(csvCell).join(';'),...exp.body.map(r=>r.map(csvCell).join(';'))].join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='match-analyzer-export.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-function render(){
-  document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('active',b.dataset.m===ST.market));
-  const totals=DATASETS.reduce((s,d)=>s+(ST[d.key]?.length||0),0); document.getElementById('hdrInfo').textContent=`Dataset caricati: ${totals} righe • Vista: ${document.querySelector('.mtab.active')?.textContent||''}`;
-  renderUploadGrid();
-  buildControls();
-  renderRows();
-}
-
 function setUploadStatus(msg,type=''){
   const el=document.getElementById('uploadStatus');
   if(!el)return;
   el.className='up-status'+(type?` ${type}`:'');
   el.textContent=msg;
 }
-function readFileAsText(file){
+async function readFileAsText(file){
   if(file && typeof file.text==='function') return file.text();
   return new Promise((resolve,reject)=>{
     const fr=new FileReader();
@@ -566,14 +703,9 @@ function bindStatic(){
   document.body.addEventListener('click',e=>{if(e.target.id==='pdfBtn')downloadPdf();});
 }
 
-
-
 function withAggregateNeutralFilters(fn){
   const prev={sub:ST.sub,iaCat:ST.iaCat,quoteFilter:ST.quoteFilter,gzFilter:ST.gzFilter};
-  ST.sub='all';
-  ST.iaCat='all';
-  ST.quoteFilter='all';
-  ST.gzFilter='all';
+  ST.sub='all'; ST.iaCat='all'; ST.quoteFilter='all'; ST.gzFilter='all';
   try{return fn();}finally{ST.sub=prev.sub;ST.iaCat=prev.iaCat;ST.quoteFilter=prev.quoteFilter;ST.gzFilter=prev.gzFilter;}
 }
 const _baseBuildHubMatchMapFix = buildHubMatchMap;
@@ -584,7 +716,6 @@ const _baseGetGeneralRowsFix = getGeneralRows;
 getGeneralRows = function(){
   return withAggregateNeutralFilters(()=>_baseGetGeneralRowsFix());
 };
-
 
 ST.histStatus='all';
 ST.histCategory='all';
@@ -704,7 +835,6 @@ document.body.addEventListener('click',e=>{
 document.body.addEventListener('change',e=>{
   if(e.target.id==='histCatSel'){ ST.histCategory=e.target.value; render(); }
 });
-
 
 const DB_NAME='matchAnalyzerStore';
 const DB_VERSION=1;
